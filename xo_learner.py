@@ -2,7 +2,7 @@
 -Matthew Carlis
 """
 import sys
-from numpy import array, full
+import numpy as np
 
 class network(object):
 
@@ -12,10 +12,10 @@ class network(object):
         #               A * B Row/Column wise.  Not Matrix Mult.
         #               5 + A Row/Column Wise.
         # np.array([1, 2, 3]) * np.array([4, 5, 6]) = np.array([4, 10, 18])
-        self.matrix = array(matrix)
-        self.trainset = array(trainset)
-        self.weights = full((3, 3), 0.5)
-        self.output_y = full((3,3), 0)
+        self.matrix = np.array(matrix)
+        self.trainset = np.array(trainset)
+        self.weights = np.full((3, 3), 0.5)
+        self.output_y = np.full((3,3), 0)
         print self.matrix.__repr__()
         for data in self.trainset:
             print data.__repr__()
