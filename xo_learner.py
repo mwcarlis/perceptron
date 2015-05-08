@@ -6,7 +6,7 @@ import numpy as np
 
 class network(object):
 
-    def __init__(self, matrix, trainset, epsilon=0.5, initial_w=0.5):
+    def __init__(self, matrix, trainset, epsilon=0.0001, initial_w=0.5, debug=False):
         self.epsilon = epsilon
         # Numpy Array.  A + B rows/col wise.
         #               A * B Row/Column wise.  Not Matrix Mult.
@@ -14,41 +14,51 @@ class network(object):
         # np.array([1, 2, 3]) * np.array([4, 5, 6]) = np.array([4, 10, 18])
         self.matrix = np.array(matrix)
         self.trainset = np.array(trainset)
-        self.weights = np.full((3, 3), 0.5)
-        self.output_y = np.full((3,3), 0)
-        print self.matrix.__repr__()
-        for data in self.trainset:
-            print data.__repr__()
+        self.weights = np.full((1, len(self.trainset[0])), 0.5)
+        self.output_y = np.full((1, len(self.trainset[0])), 0)
+        if debug:
+            print 'matrix:\t\t', self.matrix.__repr__()
+            print 'trainset:\t', self.trainset.__repr__()
+            print 'weights:\t', self.weights.__repr__()
+            print 'output_y:\t', self.output_y.__repr__()
 
-    def _matrix_logistic(self):
+    def _matrix_logistic(self, train_indx):
         """ Return 1 / (1 + e ^ (- (W dot X)))
         """
-        denom = 1.0 + np.exp(-(self.weights * self.matrix))
-        return 1.0 / denom
+        dot_product = np.dot(self.weights, np.array(np.matrix(self.trainset[train_indx]).T))
+        return (1.0 / (1.0 + np.exp(-dot_product)))
 
-    def _matrix_loss(self):
+    def _matrix_loss(self, train_indx):
         """ for all x, y in Set. Sum((y - logistic(x))^2).
         """
-        return np.sum((self.output_y - self._matrix_logistic())**2)
+        return np.sum((self.output_y - self._matrix_logistic(train_indx))**2)
 
     def _alpha_t(self, time):
         return 1000.0 / (1000.0 + time)
 
-    def _matrix_new_weights(self, time):
+    def _matrix_new_weights(self, time, train_indx):
         """ new W_i function.  Matrix operation.
         """
-        x_i, w_i, y_i = self.matrix, self.weights, self.output_y
-        h_xi = self._matrix_logistic()
-        product = self.alpha_t(time) * (y_i - h_xi) * h_xi * (1.0 - h_xi) * x_i
+        x_i, w_i, y_i = self.trainset[train_indx], self.weights, self.output_y
+        h_xi = self._matrix_logistic(train_indx)
+        product = self._alpha_t(time) * (y_i - h_xi) * h_xi * (1.0 - h_xi) * x_i
         return w_i + product
 
     def run_train(self):
         """ Run the training algorithm.
         """
-        for time in xrange(1000):
-            weights = self._matrix_new_weights(time)
-            if self.matrix_loss() <= self.epsilon:
+        mod = len(self.trainset)
+        start = 0
+        for time in xrange(100000):
+            train_indx = time % mod
+            self.weights = self._matrix_new_weights(time, train_indx)
+            loss = self._matrix_loss(train_indx) 
+            if loss <= self.epsilon:
                 break
+        print '\ntrainset:', self.trainset.__repr__()
+        print 'weights:', self.weights.__repr__()
+        print 'loss:', loss
+        print 'time:', time
         print 'Done Running'
 
 
@@ -103,17 +113,19 @@ def remap_values(train_set, test_case, d_map):
     for data_set in train_set:
         mat = []
         for d_row in data_set:
-            row = []
+        #    row = []
             for item in d_row:
-                row.append(d_map[item])
-            mat.append(row)
+                mat.append(d_map[item])
+        #        row.append(d_map[item])
+        #    mat.append(row)
         trainer.append(mat)
     tester = []
     for data_set in test_case:
-        row = []
+        #row = []
         for item in data_set:
-            row.append(d_map[item])
-        tester.append(row)
+            #row.append(d_map[item])
+            tester.append(d_map[item])
+        #tester.append(row)
     return trainer, tester
 
 
@@ -121,7 +133,9 @@ def remap_values(train_set, test_case, d_map):
 if __name__ == "__main__":
     ARGS = sys.argv
     # Map and Parse the input.
-    TRAIN_SET, TEST_CASE = parse_input(ARGS)
+    #TRAIN_SET, TEST_CASE = parse_input(ARGS)
+    TRAIN_SET, TEST_CASE = parse_input(['', 'trainer.txt', 'test_file.txt'])
+    #TRAIN_SET, TEST_CASE = 
     D_MAP = build_vector_map(TRAIN_SET, {})
     TRAIN_VALS, TEST_VALS = remap_values(TRAIN_SET, TEST_CASE, D_MAP)
     
