@@ -2,11 +2,12 @@
 -Matthew Carlis
 """
 import sys
+import copy
 import numpy as np
 
 class network(object):
 
-    def __init__(self, matrix, trainset, epsilon=0.0001, initial_w=0.5, debug=False):
+    def __init__(self, matrix, trainset, epsilon=0.00001, initial_w=0.5, debug=False):
         self.epsilon = epsilon
         # Numpy Array.  A + B rows/col wise.
         #               A * B Row/Column wise.  Not Matrix Mult.
@@ -14,13 +15,27 @@ class network(object):
         # np.array([1, 2, 3]) * np.array([4, 5, 6]) = np.array([4, 10, 18])
         self.matrix = np.array(matrix)
         self.trainset = np.array(trainset)
-        self.weights = np.full((1, len(self.trainset[0])), 0.5)
-        self.output_y = np.full((1, len(self.trainset[0])), 0)
+        self.weights = np.full((1, len(self.trainset[0])), 0.25)
+        self.output_y = np.full((1, len(self.trainset)), 0.5)
         if debug:
             print 'matrix:\t\t', self.matrix.__repr__()
             print 'trainset:\t', self.trainset.__repr__()
             print 'weights:\t', self.weights.__repr__()
             print 'output_y:\t', self.output_y.__repr__()
+            print 'output_y:\t', self.output_y[0].__repr__()
+        self.run_train()
+
+    def test_input(self):
+        dot_product = np.dot(self.weights, np.array(np.matrix(self.matrix).T))
+        ret_v = (1.0 / (1.0 + np.exp(-dot_product)))
+        print ret_v,
+        if ret_v > 0.4772 and ret_v < 0.5228:
+            print "Tie X's & O's"
+        elif ret_v >= 0.5228:
+            print "MOSTLY O's"
+        else:
+            print "MOSTLY X's"
+
 
     def _matrix_logistic(self, train_indx):
         """ Return 1 / (1 + e ^ (- (W dot X)))
@@ -28,19 +43,21 @@ class network(object):
         dot_product = np.dot(self.weights, np.array(np.matrix(self.trainset[train_indx]).T))
         return (1.0 / (1.0 + np.exp(-dot_product)))
 
-    def _matrix_loss(self, train_indx):
+    def _matrix_loss(self):
         """ for all x, y in Set. Sum((y - logistic(x))^2).
         """
-        return np.sum((self.output_y - self._matrix_logistic(train_indx))**2)
+        ret_sum = 0
+        for cnt, val in enumerate(self.output_y[0]):
+            ret_sum += np.sum((val - self._matrix_logistic(cnt))**2)
+        return ret_sum
 
     def _alpha_t(self, time):
         return 1000.0 / (1000.0 + time)
 
-    def _matrix_new_weights(self, time, train_indx):
+    def _matrix_new_weights(self, h_xi, time, train_indx):
         """ new W_i function.  Matrix operation.
         """
-        x_i, w_i, y_i = self.trainset[train_indx], self.weights, self.output_y
-        h_xi = self._matrix_logistic(train_indx)
+        x_i, w_i, y_i = self.trainset[train_indx], self.weights, self.output_y[0][train_indx]
         product = self._alpha_t(time) * (y_i - h_xi) * h_xi * (1.0 - h_xi) * x_i
         return w_i + product
 
@@ -51,15 +68,18 @@ class network(object):
         start = 0
         for time in xrange(100000):
             train_indx = time % mod
-            self.weights = self._matrix_new_weights(time, train_indx)
-            loss = self._matrix_loss(train_indx) 
+            h_xi = self._matrix_logistic(train_indx)
+            self.weights = self._matrix_new_weights(h_xi, time, train_indx)
+            self.output_y[0][train_indx] = h_xi
+            loss = self._matrix_loss() 
             if loss <= self.epsilon:
+                print 'time:', time
                 break
-        print '\ntrainset:', self.trainset.__repr__()
-        print 'weights:', self.weights.__repr__()
+        if time == 100000 - 1:
+            print 'Failed to Train in time.'
+            return
         print 'loss:', loss
-        print 'time:', time
-        print 'Done Running'
+        self.test_input()
 
 
 def get_matrix(file_name, matrix):
@@ -84,9 +104,9 @@ def get_matrix(file_name, matrix):
 
 def parse_input(args):
     if len(args) != 3:
-        print 'Failed Arguments'
-        return
-        #sys.exit(1)
+        print '     ____________Failed Arguments____________'
+        print 'USAGE: $python xo_learner.py trainers.txt input.txt'
+        sys.exit(1)
     train_file, test_file = args[1], args[2]
     train_cases, test_matrix = [], []
     get_matrix(train_file, train_cases)
@@ -97,7 +117,10 @@ def build_vector_map(dataset, d_map):
     if isinstance(dataset, str):
         for val in dataset:
             if not d_map.has_key(val):
-                d_map[val] = len(d_map)
+                if len(d_map) == 0:
+                    d_map[val] = -1
+                else:
+                    d_map[val] = 1
             if len(d_map) == 2:
                 break
         return len(d_map)
@@ -113,19 +136,13 @@ def remap_values(train_set, test_case, d_map):
     for data_set in train_set:
         mat = []
         for d_row in data_set:
-        #    row = []
             for item in d_row:
                 mat.append(d_map[item])
-        #        row.append(d_map[item])
-        #    mat.append(row)
         trainer.append(mat)
     tester = []
     for data_set in test_case:
-        #row = []
         for item in data_set:
-            #row.append(d_map[item])
             tester.append(d_map[item])
-        #tester.append(row)
     return trainer, tester
 
 
@@ -133,10 +150,13 @@ def remap_values(train_set, test_case, d_map):
 if __name__ == "__main__":
     ARGS = sys.argv
     # Map and Parse the input.
-    #TRAIN_SET, TEST_CASE = parse_input(ARGS)
-    TRAIN_SET, TEST_CASE = parse_input(['', 'trainer.txt', 'test_file.txt'])
-    #TRAIN_SET, TEST_CASE = 
-    D_MAP = build_vector_map(TRAIN_SET, {})
+    if len(ARGS) == 3:
+        TRAIN_SET, TEST_CASE = parse_input(ARGS)
+    else:
+        TRAIN_SET, TEST_CASE = parse_input(['', 'trainer.txt', 'test_file2.txt'])
+
+    #D_MAP = build_vector_map(TRAIN_SET, {})
+    D_MAP = {'X':-1, 'O':1}
     TRAIN_VALS, TEST_VALS = remap_values(TRAIN_SET, TEST_CASE, D_MAP)
     
     # Start the Training/Learning
