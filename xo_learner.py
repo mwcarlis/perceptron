@@ -4,10 +4,11 @@
 import sys
 import copy
 import numpy as np
+import random
 
 class network(object):
 
-    def __init__(self, matrix, trainset, epsilon=0.00001, initial_w=0.5, debug=False):
+    def __init__(self, matrix, trainset, epsilon=0.0000000000000001, initial_w=0.5, debug=False):
         self.epsilon = epsilon
         # Numpy Array.  A + B rows/col wise.
         #               A * B Row/Column wise.  Not Matrix Mult.
@@ -15,7 +16,7 @@ class network(object):
         # np.array([1, 2, 3]) * np.array([4, 5, 6]) = np.array([4, 10, 18])
         self.matrix = np.array(matrix)
         self.trainset = np.array(trainset)
-        self.weights = np.full((1, len(self.trainset[0])), 0.25)
+        self.weights = np.full((1, len(self.trainset[0])), initial_w)
         self.output_y = np.full((1, len(self.trainset)), 0.5)
         if debug:
             print 'matrix:\t\t', self.matrix.__repr__()
@@ -23,18 +24,17 @@ class network(object):
             print 'weights:\t', self.weights.__repr__()
             print 'output_y:\t', self.output_y.__repr__()
             print 'output_y:\t', self.output_y[0].__repr__()
-        self.run_train()
 
     def test_input(self):
         dot_product = np.dot(self.weights, np.array(np.matrix(self.matrix).T))
         ret_v = (1.0 / (1.0 + np.exp(-dot_product)))
-        print ret_v,
-        if ret_v > 0.4772 and ret_v < 0.5228:
-            print "Tie X's & O's"
-        elif ret_v >= 0.5228:
-            print "MOSTLY O's"
+        #if ret_v > 0.4772 and ret_v < 0.5228:
+            #print "Tie X's & O's"
+        #    return 'Tie'
+        if ret_v >= 0.50:
+            return "MOSTLY O's"
         else:
-            print "MOSTLY X's"
+            return "MOSTLY X's"
 
 
     def _matrix_logistic(self, train_indx):
@@ -73,13 +73,11 @@ class network(object):
             self.output_y[0][train_indx] = h_xi
             loss = self._matrix_loss() 
             if loss <= self.epsilon:
-                print 'time:', time
                 break
         if time == 100000 - 1:
             print 'Failed to Train in time.'
             return
-        print 'loss:', loss
-        self.test_input()
+        return self.test_input()
 
 
 def get_matrix(file_name, matrix):
@@ -145,19 +143,49 @@ def remap_values(train_set, test_case, d_map):
             tester.append(d_map[item])
     return trainer, tester
 
+def random_test(train_set, d_map):
+    data = ['X', 'O']
+    correct, incorrect, tie_cnt = 0, 0, 0
+    limit = 1000
+    for test in range(limit):
+        x_cnt, o_cnt = 0, 0
+        test_vals = []
+        for cnt in range(10):
+            value = random.choice(data)
+            if 'X' in value:
+                x_cnt += 1
+            elif 'O' in value:
+                o_cnt += 1
+            test_vals.append(d_map[value])
+        if x_cnt == o_cnt:
+            tie_cnt += 1
+            continue
+        test_vals, train_set
+        net = network(test_vals, train_set, debug=False)
+        result = net.run_train()
+
+        if o_cnt > x_cnt and "MOSTLY O's" in result:
+            correct += 1
+        elif o_cnt < x_cnt and "MOSTLY X's" in result:
+            correct += 1
+        else:
+            incorrect += 1
+    print 'Correct:', correct, 'incorrect:', incorrect, 'Ties:', tie_cnt
+
 
 
 if __name__ == "__main__":
     ARGS = sys.argv
     # Map and Parse the input.
+    D_MAP = {'X':-1, 'O':1}
     if len(ARGS) == 3:
         TRAIN_SET, TEST_CASE = parse_input(ARGS)
+        TRAIN_VALS, TEST_VALS = remap_values(TRAIN_SET, TEST_CASE, D_MAP)
+        NET = network(TEST_VALS, TRAIN_VALS)
+        print NET.run_train()
     else:
         TRAIN_SET, TEST_CASE = parse_input(['', 'trainer.txt', 'test_file2.txt'])
+        TRAIN_VALS, TEST_VALS = remap_values(TRAIN_SET, TEST_CASE, D_MAP)
+        random_test(TRAIN_VALS, D_MAP)
 
-    #D_MAP = build_vector_map(TRAIN_SET, {})
-    D_MAP = {'X':-1, 'O':1}
-    TRAIN_VALS, TEST_VALS = remap_values(TRAIN_SET, TEST_CASE, D_MAP)
-    
-    # Start the Training/Learning
-    NET = network(TEST_VALS, TRAIN_VALS)
+
