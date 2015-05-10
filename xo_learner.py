@@ -8,15 +8,14 @@ import copy
 import random
 
 try:
-    #raise ImportError('No Numpy')
     import numpy as t_np
-    test = t_np.full((1, 1), 1) # full only in latest numpy V1.9
-    del test
+    TEST = t_np.full((1, 1), 1) # full only in latest numpy V1.9
     np = t_np
     print 'numpy as np'
 except Exception:
     import my_numpy as np
     print 'my_numpy as np'
+del TEST
 
 class Network(object):
 
